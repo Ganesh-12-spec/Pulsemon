@@ -3,21 +3,16 @@ package main
 import (
 	"fmt"
 
-	"github.com/Ganesh-12-spec/pulsemon/internal/config"
+	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
 )
 
 func main() {
-	// Define one sample monitoring target.
-	target := config.Target{
-		Name:      "Example API",
-		URL:       "https://example.com",
-		Interval:  10,
-		Timeout:   5,
-		Threshold: 3,
+	err := checker.Check("https://example.com")
+
+	if err != nil {
+		fmt.Println("Health check failed:", err)
+		return
 	}
 
-	// Print the configuration temporarily.
-	// Actual health-checking logic will be added
-	// in a later commit.
-	fmt.Printf("Monitoring target: %+v\n", target)
+	fmt.Println("Health check passed")
 }

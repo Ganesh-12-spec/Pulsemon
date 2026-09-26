@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
@@ -26,15 +27,25 @@ func main() {
 	fmt.Println("Pulsemon started...")
 
 	for range ticker.C {
+		var wg sync.WaitGroup
+
 		for _, target := range targets {
-			err := checker.Check(target.URL)
+			wg.Add(1)
 
-			if err != nil {
-				fmt.Println("Health check failed for", target.Name, ":", err)
-				continue
-			}
+			go func(target config.Target) {
+				defer wg.Done()
 
-			fmt.Println("Health check passed for", target.Name)
+				err := checker.Check(target.URL)
+
+				if err != nil {
+					fmt.Println("Health check failed for", target.Name, ":", err)
+					return
+				}
+
+				fmt.Println("Health check passed for", target.Name)
+			}(target)
 		}
+
+		wg.Wait()
 	}
 }

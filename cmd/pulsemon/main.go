@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
 	"github.com/Ganesh-12-spec/pulsemon/internal/config"
+	"github.com/Ganesh-12-spec/pulsemon/internal/history"
 )
 
 func main() {
@@ -21,31 +21,41 @@ func main() {
 		},
 	}
 
+	// History stores the result of every health check.
+	historyStore := history.History{}
+
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
 	fmt.Println("Pulsemon started...")
 
 	for range ticker.C {
-		var wg sync.WaitGroup
-
 		for _, target := range targets {
-			wg.Add(1)
 
-			go func(target config.Target) {
-				defer wg.Done()
+			// Check the target with a 5-second timeout.
+			err := checker.Check(target.URL, 5*time.Second)
 
-				err := checker.Check(target.URL)
+			if err != nil {
+				fmt.Println("Health check failed for", target.Name, ":", err)
 
-				if err != nil {
-					fmt.Println("Health check failed for", target.Name, ":", err)
-					return
-				}
+				// Store the failed health check.
+				historyStore.Add(history.Record{
+					Target: target.Name,
+					Status: "DOWN",
+					Time:   time.Now(),
+				})
 
-				fmt.Println("Health check passed for", target.Name)
-			}(target)
+				continue
+			}
+
+			fmt.Println("Health check passed for", target.Name)
+
+			// Store the successful health check.
+			historyStore.Add(history.Record{
+				Target: target.Name,
+				Status: "UP",
+				Time:   time.Now(),
+			})
 		}
-
-		wg.Wait()
 	}
 }

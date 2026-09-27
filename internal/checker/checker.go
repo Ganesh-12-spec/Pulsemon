@@ -6,19 +6,24 @@ import (
 	"time"
 )
 
-func Check(url string, timeout time.Duration) error {
+func Check(url string, timeout time.Duration) (time.Duration, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
+
+	start := time.Now()
 
 	_, err = http.DefaultClient.Do(req)
+
+	latency := time.Since(start)
+
 	if err != nil {
-		return err
+		return latency, err
 	}
 
-	return nil
+	return latency, nil
 }

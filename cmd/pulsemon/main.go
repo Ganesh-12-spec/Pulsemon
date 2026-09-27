@@ -32,15 +32,16 @@ func main() {
 	for range ticker.C {
 		for _, target := range targets {
 
-			err := checker.Check(target.URL, 5*time.Second)
+			latency, err := checker.Check(target.URL, 5*time.Second)
 
 			if err != nil {
 				fmt.Println("Health check failed for", target.Name, ":", err)
 
 				historyStore.Add(history.Record{
-					Target: target.Name,
-					Status: "DOWN",
-					Time:   time.Now(),
+					Target:  target.Name,
+					Status:  "DOWN",
+					Time:    time.Now(),
+					Latency: latency,
 				})
 
 				continue
@@ -49,17 +50,20 @@ func main() {
 			fmt.Println("Health check passed for", target.Name)
 
 			historyStore.Add(history.Record{
-				Target: target.Name,
-				Status: "UP",
-				Time:   time.Now(),
+				Target:  target.Name,
+				Status:  "UP",
+				Time:    time.Now(),
+				Latency: latency,
 			})
 
 			uptime := historyStore.Uptime(target.Name)
+			averageLatency := historyStore.AverageLatency(target.Name)
 
 			fmt.Printf(
-				"%s uptime: %.2f%%\n",
+				"%s uptime: %.2f%% | average latency: %v\n",
 				target.Name,
 				uptime,
+				averageLatency,
 			)
 		}
 	}

@@ -21,7 +21,7 @@ func main() {
 		},
 	}
 
-	// History stores the result of every health check.
+	// History stores every health-check result.
 	historyStore := history.History{}
 
 	ticker := time.NewTicker(10 * time.Second)
@@ -32,13 +32,11 @@ func main() {
 	for range ticker.C {
 		for _, target := range targets {
 
-			// Check the target with a 5-second timeout.
 			err := checker.Check(target.URL, 5*time.Second)
 
 			if err != nil {
 				fmt.Println("Health check failed for", target.Name, ":", err)
 
-				// Store the failed health check.
 				historyStore.Add(history.Record{
 					Target: target.Name,
 					Status: "DOWN",
@@ -50,12 +48,19 @@ func main() {
 
 			fmt.Println("Health check passed for", target.Name)
 
-			// Store the successful health check.
 			historyStore.Add(history.Record{
 				Target: target.Name,
 				Status: "UP",
 				Time:   time.Now(),
 			})
+
+			uptime := historyStore.Uptime(target.Name)
+
+			fmt.Printf(
+				"%s uptime: %.2f%%\n",
+				target.Name,
+				uptime,
+			)
 		}
 	}
 }

@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
@@ -11,6 +12,8 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
 	targets := []config.Target{
 		{
 			Name: "Example",
@@ -28,7 +31,7 @@ func main() {
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
 
-	fmt.Println("Pulsemon started...")
+	logger.Info("Pulsemon started")
 
 	for range ticker.C {
 		for _, target := range targets {
@@ -37,7 +40,13 @@ func main() {
 			status, changed := stateMonitor.Update(target.Name, err)
 
 			if err != nil {
-				fmt.Println("Health check failed for", target.Name, ":", err)
+				logger.Error(
+					"health check failed",
+					"target", target.Name,
+					"status", status,
+					"error", err,
+					"latency", latency,
+				)
 
 				historyStore.Add(history.Record{
 					Target:  target.Name,
@@ -47,13 +56,22 @@ func main() {
 				})
 
 				if changed {
-					fmt.Println(target.Name, "state changed to", status)
+					logger.Warn(
+						"target state changed",
+						"target", target.Name,
+						"status", status,
+					)
 				}
 
 				continue
 			}
 
-			fmt.Println("Health check passed for", target.Name)
+			logger.Info(
+				"health check passed",
+				"target", target.Name,
+				"status", status,
+				"latency", latency,
+			)
 
 			historyStore.Add(history.Record{
 				Target:  target.Name,
@@ -63,17 +81,21 @@ func main() {
 			})
 
 			if changed {
-				fmt.Println(target.Name, "state changed to", status)
+				logger.Info(
+					"target state changed",
+					"target", target.Name,
+					"status", status,
+				)
 			}
 
 			uptime := historyStore.Uptime(target.Name)
 			averageLatency := historyStore.AverageLatency(target.Name)
 
-			fmt.Printf(
-				"%s uptime: %.2f%% | average latency: %v\n",
-				target.Name,
-				uptime,
-				averageLatency,
+			logger.Info(
+				"target metrics",
+				"target", target.Name,
+				"uptime", uptime,
+				"average_latency", averageLatency,
 			)
 		}
 	}

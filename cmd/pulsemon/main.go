@@ -7,6 +7,7 @@ import (
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
 	"github.com/Ganesh-12-spec/pulsemon/internal/config"
 	"github.com/Ganesh-12-spec/pulsemon/internal/history"
+	"github.com/Ganesh-12-spec/pulsemon/internal/state"
 )
 
 func main() {
@@ -21,8 +22,8 @@ func main() {
 		},
 	}
 
-	// History stores every health-check result.
 	historyStore := history.History{}
+	stateMonitor := state.NewMonitor()
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -31,18 +32,23 @@ func main() {
 
 	for range ticker.C {
 		for _, target := range targets {
-
 			latency, err := checker.Check(target.URL, 5*time.Second)
+
+			status, changed := stateMonitor.Update(target.Name, err)
 
 			if err != nil {
 				fmt.Println("Health check failed for", target.Name, ":", err)
 
 				historyStore.Add(history.Record{
 					Target:  target.Name,
-					Status:  "DOWN",
+					Status:  string(status),
 					Time:    time.Now(),
 					Latency: latency,
 				})
+
+				if changed {
+					fmt.Println(target.Name, "state changed to", status)
+				}
 
 				continue
 			}
@@ -51,10 +57,14 @@ func main() {
 
 			historyStore.Add(history.Record{
 				Target:  target.Name,
-				Status:  "UP",
+				Status:  string(status),
 				Time:    time.Now(),
 				Latency: latency,
 			})
+
+			if changed {
+				fmt.Println(target.Name, "state changed to", status)
+			}
 
 			uptime := historyStore.Uptime(target.Name)
 			averageLatency := historyStore.AverageLatency(target.Name)

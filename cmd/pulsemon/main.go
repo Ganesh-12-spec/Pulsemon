@@ -37,7 +37,7 @@ func main() {
 		for _, target := range targets {
 			latency, err := checker.Check(target.URL, 5*time.Second)
 
-			status, changed, thresholdReached := stateMonitor.Update(target.Name, err)
+			status, changed, thresholdReached, recovered := stateMonitor.Update(target.Name, err)
 
 			if err != nil {
 				logger.Error(
@@ -92,6 +92,13 @@ func main() {
 			if changed {
 				logger.Info(
 					"target state changed",
+					"target", target.Name,
+					"status", status,
+				)
+			}
+			if recovered {
+				logger.Info(
+					"target recovered",
 					"target", target.Name,
 					"status", status,
 				)

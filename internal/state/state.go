@@ -19,7 +19,7 @@ func NewMonitor() *Monitor {
 	}
 }
 
-func (m *Monitor) Update(target string, err error) (Status, bool, bool) {
+func (m *Monitor) Update(target string, err error) (Status, bool, bool, bool) {
 	newStatus := UP
 
 	if err != nil {
@@ -35,11 +35,12 @@ func (m *Monitor) Update(target string, err error) (Status, bool, bool) {
 
 	if !exists {
 		thresholdReached := m.failureCounts[target] >= 3
-		return newStatus, true, thresholdReached
+		return newStatus, true, thresholdReached, false
 	}
 
 	changed := oldStatus != newStatus
 	thresholdReached := m.failureCounts[target] == 3
+	recovered := oldStatus == DOWN && newStatus == UP
 
-	return newStatus, changed, thresholdReached
+	return newStatus, changed, thresholdReached, recovered
 }

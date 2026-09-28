@@ -8,20 +8,25 @@ const (
 )
 
 type Monitor struct {
-	states map[string]Status
+	states        map[string]Status
+	failureCounts map[string]int
 }
 
 func NewMonitor() *Monitor {
 	return &Monitor{
-		states: make(map[string]Status),
+		states:        make(map[string]Status),
+		failureCounts: make(map[string]int),
 	}
 }
 
-func (m *Monitor) Update(target string, err error) (Status, bool) {
+func (m *Monitor) Update(target string, err error) (Status, bool, bool) {
 	newStatus := UP
 
 	if err != nil {
 		newStatus = DOWN
+		m.failureCounts[target]++
+	} else {
+		m.failureCounts[target] = 0
 	}
 
 	oldStatus, exists := m.states[target]
@@ -29,8 +34,12 @@ func (m *Monitor) Update(target string, err error) (Status, bool) {
 	m.states[target] = newStatus
 
 	if !exists {
-		return newStatus, true
+		thresholdReached := m.failureCounts[target] >= 3
+		return newStatus, true, thresholdReached
 	}
 
-	return newStatus, oldStatus != newStatus
+	changed := oldStatus != newStatus
+	thresholdReached := m.failureCounts[target] == 3
+
+	return newStatus, changed, thresholdReached
 }

@@ -37,7 +37,7 @@ func main() {
 		for _, target := range targets {
 			latency, err := checker.Check(target.URL, 5*time.Second)
 
-			status, changed := stateMonitor.Update(target.Name, err)
+			status, changed, thresholdReached := stateMonitor.Update(target.Name, err)
 
 			if err != nil {
 				logger.Error(
@@ -60,6 +60,15 @@ func main() {
 						"target state changed",
 						"target", target.Name,
 						"status", status,
+					)
+				}
+
+				if thresholdReached {
+					logger.Error(
+						"failure threshold reached",
+						"target", target.Name,
+						"status", status,
+						"consecutive_failures", 3,
 					)
 				}
 

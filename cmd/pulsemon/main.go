@@ -9,10 +9,13 @@ import (
 	"github.com/Ganesh-12-spec/pulsemon/internal/config"
 	"github.com/Ganesh-12-spec/pulsemon/internal/history"
 	"github.com/Ganesh-12-spec/pulsemon/internal/state"
+	"github.com/Ganesh-12-spec/pulsemon/internal/webhook"
 )
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	webhookURL := "https://example.com/webhook"
 
 	targets := []config.Target{
 		{
@@ -70,6 +73,20 @@ func main() {
 						"status", status,
 						"consecutive_failures", 3,
 					)
+					err := webhook.Send(webhookURL, webhook.Payload{
+						Target:              target.Name,
+						Status:              string(status),
+						Event:               "failure_threshold",
+						ConsecutiveFailures: 3,
+					})
+
+					if err != nil {
+						logger.Error(
+							"failed to send failure webhook",
+							"target", target.Name,
+							"error", err,
+						)
+					}
 				}
 
 				continue
@@ -102,6 +119,19 @@ func main() {
 					"target", target.Name,
 					"status", status,
 				)
+				err := webhook.Send(webhookURL, webhook.Payload{
+					Target: target.Name,
+					Status: string(status),
+					Event:  "recovered",
+				})
+
+				if err != nil {
+					logger.Error(
+						"failed to send recovery webhook",
+						"target", target.Name,
+						"error", err,
+					)
+				}
 			}
 
 			uptime := historyStore.Uptime(target.Name)

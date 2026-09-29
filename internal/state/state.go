@@ -1,5 +1,7 @@
 package state
 
+import "sync"
+
 type Status string
 
 const (
@@ -8,6 +10,7 @@ const (
 )
 
 type Monitor struct {
+	mu            sync.RWMutex
 	states        map[string]Status
 	failureCounts map[string]int
 }
@@ -20,6 +23,9 @@ func NewMonitor() *Monitor {
 }
 
 func (m *Monitor) Update(target string, err error) (Status, bool, bool, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	newStatus := UP
 
 	if err != nil {
@@ -43,4 +49,17 @@ func (m *Monitor) Update(target string, err error) (Status, bool, bool, bool) {
 	recovered := oldStatus == DOWN && newStatus == UP
 
 	return newStatus, changed, thresholdReached, recovered
+}
+
+func (m *Monitor) Snapshot() map[string]Status {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	snapshot := make(map[string]Status)
+
+	for target, status := range m.states {
+		snapshot[target] = status
+	}
+
+	return snapshot
 }

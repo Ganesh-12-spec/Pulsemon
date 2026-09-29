@@ -2,9 +2,11 @@ package main
 
 import (
 	"log/slog"
+	"net/http"
 	"os"
 	"time"
 
+	"github.com/Ganesh-12-spec/pulsemon/internal/api"
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
 	"github.com/Ganesh-12-spec/pulsemon/internal/config"
 	"github.com/Ganesh-12-spec/pulsemon/internal/history"
@@ -18,18 +20,23 @@ func main() {
 	webhookURL := "https://example.com/webhook"
 
 	targets := []config.Target{
-		{
-			Name: "Example",
-			URL:  "https://example.com",
-		},
-		{
-			Name: "Google",
-			URL:  "https://google.com",
-		},
+		{Name: "Example", URL: "https://example.com"},
+		{Name: "Google", URL: "https://google.com"},
 	}
 
 	historyStore := history.History{}
 	stateMonitor := state.NewMonitor()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/status", api.StatusHandler(stateMonitor))
+
+	go func() {
+		logger.Info("status API started", "address", ":8080")
+
+		if err := http.ListenAndServe(":8080", mux); err != nil {
+			logger.Error("status API stopped", "error", err)
+		}
+	}()
 
 	ticker := time.NewTicker(10 * time.Second)
 	defer ticker.Stop()
@@ -40,7 +47,10 @@ func main() {
 		for _, target := range targets {
 			latency, err := checker.Check(target.URL, 5*time.Second)
 
-			status, changed, thresholdReached, recovered := stateMonitor.Update(target.Name, err)
+			status, changed, thresholdReached, recovered := stateMonitor.Update(
+				target.Name,
+				err,
+			)
 
 			if err != nil {
 				logger.Error(
@@ -73,6 +83,7 @@ func main() {
 						"status", status,
 						"consecutive_failures", 3,
 					)
+
 					err := webhook.Send(webhookURL, webhook.Payload{
 						Target:              target.Name,
 						Status:              string(status),
@@ -113,12 +124,14 @@ func main() {
 					"status", status,
 				)
 			}
+
 			if recovered {
 				logger.Info(
 					"target recovered",
 					"target", target.Name,
 					"status", status,
 				)
+
 				err := webhook.Send(webhookURL, webhook.Payload{
 					Target: target.Name,
 					Status: string(status),

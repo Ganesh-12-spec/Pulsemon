@@ -10,6 +10,7 @@ import (
 	"github.com/Ganesh-12-spec/pulsemon/internal/checker"
 	"github.com/Ganesh-12-spec/pulsemon/internal/config"
 	"github.com/Ganesh-12-spec/pulsemon/internal/history"
+	"github.com/Ganesh-12-spec/pulsemon/internal/metrics"
 	"github.com/Ganesh-12-spec/pulsemon/internal/state"
 	"github.com/Ganesh-12-spec/pulsemon/internal/webhook"
 )
@@ -26,9 +27,11 @@ func main() {
 
 	historyStore := history.History{}
 	stateMonitor := state.NewMonitor()
+	metricsStore := metrics.New()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/status", api.StatusHandler(stateMonitor))
+	mux.HandleFunc("/metrics", metricsStore.Handler)
 
 	go func() {
 		logger.Info("status API started", "address", ":8080")
@@ -149,6 +152,13 @@ func main() {
 
 			uptime := historyStore.Uptime(target.Name)
 			averageLatency := historyStore.AverageLatency(target.Name)
+
+			metricsStore.Update(
+				target.Name,
+				string(status),
+				uptime,
+				averageLatency.Seconds()*1000,
+			)
 
 			logger.Info(
 				"target metrics",
